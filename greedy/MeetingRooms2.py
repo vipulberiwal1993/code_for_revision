@@ -1,7 +1,7 @@
 
 import heapq
 from bisect import bisect_left, bisect_right
-
+# https://medium.com/@yohoso/difference-between-bisect-left-and-bisect-right-in-python-32df4eb2cc06 
 
 class Solution:
     def minMeetingRooms(self, intervals: list[list[int]]) -> int:
