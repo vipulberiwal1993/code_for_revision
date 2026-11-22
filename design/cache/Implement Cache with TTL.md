@@ -1,236 +1,238 @@
-# Coding Interview: LRU Cache with TTL and Lazy Expiration
+# Design an LRU Cache with TTL Expiration
 
 **Difficulty:** Hard  
-**Topics:** HashMap, Doubly Linked List, Min-Heap, Lazy Deletion, Amortized Analysis
+**Topics:** Cache Design, LRU Eviction, TTL Expiration, Data Structures
 
 ## Problem Statement
 
-Design and implement a fixed-capacity **Least Recently Used (LRU) Cache with Time-To-Live (TTL)** expiration.
+Design and implement a fixed-capacity **Least Recently Used (LRU) Cache with Time-to-Live (TTL)** expiration.
 
-The cache must support the following operations:
+The cache stores key-value pairs. Each entry may have an expiration deadline, after which it must no longer be accessible.
 
-- `put(key, value, ttl, current_time)` — Insert or update a key with a specified TTL.
-- `get(key, current_time)` — Return the value if the key exists and has not expired; otherwise return `-1`.
+The cache supports four operations:
 
-### Requirements
+1. `put` — Insert or update a key-value pair.
+2. `get` — Retrieve a value and update its recency.
+3. `delete` — Explicitly remove a key.
+4. `size` — Return the number of currently valid entries.
 
-1. The cache has a fixed capacity of `N` entries.
-2. Each entry has an expiration deadline calculated as `current_time + ttl`.
-3. An entry is expired when `current_time >= expiration_deadline`.
-4. Before each operation, remove all expired entries.
-5. A successful `get()` updates the key's LRU recency.
-6. Every `put()` updates the key's LRU recency.
-7. If the cache is full when inserting a new key, evict the least recently used non-expired entry.
-8. Updating an existing key replaces its value and expiration deadline.
-9. Return exactly one result per operation, using `-1` for cache misses and a specified acknowledgment (such as `null`) for puts.
+Before processing **every operation**, the cache must remove all entries whose expiration deadlines are less than or equal to the operation timestamp.
 
-**Assumptions:** Operation timestamps are nondecreasing, TTL values are positive, and the cache is single-threaded unless otherwise specified.
+If inserting a new key would exceed the cache capacity, evict the least recently used valid entry.
 
----
+Return exactly one result for every operation, preserving the original operation order.
 
-## Interview Follow-up Questions
+## Function Signatures
 
-### Follow-up 1: Basic TTL Expiration
-
-**Interviewer:**
-
-Your cache contains 1 million entries, each with a different expiration deadline.
-
-Before processing every operation, you must remove expired entries.
-
-How would you implement expiration cleanup?
-
-**Discussion questions:**
-
-- Would scanning the entire hashmap work?
-- What is its time complexity?
-- Can we identify expired entries without scanning all N entries?
-- If only K entries have expired, can cleanup be faster than O(N)?
-
-### Follow-up 2: Efficient Expiration Tracking
-
-**Interviewer:**
-
-Suppose the cache contains 1 million entries, but only 2 have expired.
-
-Can you design a data structure that efficiently identifies the earliest expiration deadline?
-
-**Discussion questions:**
-
-- What data structure would you use?
-- How efficiently can you access the earliest expiration?
-- What is the complexity of removing K expired records?
-- What additional data must be stored alongside each deadline?
-
-### Follow-up 3: Updating TTL
-
-**Interviewer:**
-
-Consider the following operations:
+Implement the following Python classes and functions:
 
 ```python
-put("A", 100, ttl=10, current_time=0)
-put("A", 200, ttl=30, current_time=2)
+class Cache:
+    def __init__(self, capacity: int):
+        pass
+
+    def put(self, key: str, value: int,
+            ttl: int, ts: int) -> None:
+        pass
+
+    def get(self, key: str, ts: int) -> int | None:
+        pass
+
+    def delete(self, key: str, ts: int) -> bool:
+        pass
+
+    def size(self, ts: int) -> int:
+        pass
+
+
+def run_cache(
+    operations: list[list],
+    capacity: int
+) -> list:
+    pass
 ```
 
-The first expiration deadline is 10, and the updated deadline is 32.
+The `run_cache` function initializes a cache and executes each operation in sequence.
 
-Suppose your expiration data structure contains both records.
+## Operation Formats
 
-At time 10, how do you prevent the old expiration record from incorrectly deleting A?
+Each operation is represented by an array whose second element is its timestamp.
 
-**Discussion questions:**
+| Operation | Input format | Return value |
+|---|---|---|
+| Put | `["put", ts, key, value, ttl]` | `None` |
+| Get | `["get", ts, key]` | Value or `None` |
+| Delete | `["delete", ts, key]` | `True` or `False` |
+| Size | `["size", ts]` | Integer |
 
-- How do you distinguish an outdated expiration record from a current one?
-- Should you update or remove the old record immediately?
-- What happens when the same key is updated multiple times?
-- Would comparing deadlines alone always be sufficient?
+## Detailed Requirements
 
-### Follow-up 4: Lazy Deletion
+### 1. TTL Expiration
 
-**Interviewer:**
+Every `put` operation specifies a TTL.
 
-Removing an arbitrary element from a standard min-heap can require linear time.
+- If `ttl > 0`, the expiration deadline is `ts + ttl`.
+- If `ttl == 0`, the entry never expires.
+- An entry expires when `current_time >= expiration_deadline`.
+- Expired entries must be removed before processing any operation.
+- Reading an entry does not extend its TTL.
+- Updating an existing key replaces its TTL and resets its expiration deadline.
 
-Can we avoid immediately removing outdated expiration records when a key is updated?
-
-**Discussion questions:**
-
-- What is lazy deletion?
-- When should outdated records actually be removed?
-- How do you verify whether a heap record is still valid?
-- What happens if the hashmap no longer contains the key?
-- Why should an outdated record be discarded rather than reinserted?
-
-### Follow-up 5: Duplicate Heap Records
-
-**Interviewer:**
-
-Suppose the heap contains:
+For example:
 
 ```python
-[(10, "A"), (30, "A")]
+put("a", 10, ttl=5, ts=0)
 ```
 
-But the hashmap contains:
+The key is valid at timestamps 0 through 4 and expires at timestamp 5.
+
+### 2. LRU Eviction
+
+The cache has a maximum capacity.
+
+When a new key is inserted and the cache is full, evict the least recently used valid key.
+
+Recency is updated when:
+
+- A key is successfully retrieved using `get`.
+- A key is inserted using `put`.
+- An existing key is updated using `put`.
+
+Unsuccessful `get` operations do not change recency.
+
+Expiration cleanup does not refresh the recency of other entries.
+
+### 3. Updating Existing Keys
+
+When `put` is called for an existing key:
+
+- Replace its stored value.
+- Replace its TTL and expiration deadline.
+- Mark it as the most recently used entry.
+- Do not increase the number of entries.
+- Do not evict another entry merely because an existing key is updated.
+
+### 4. Explicit Deletion
+
+`delete(key, ts)` removes the specified key if it currently exists.
+
+- Return `True` if the key was successfully removed.
+- Return `False` if the key does not exist or has already expired.
+- Deletion immediately frees cache capacity.
+
+### 5. Size
+
+`size(ts)` returns the number of non-expired entries currently stored in the cache.
+
+Expired entries must be removed before calculating the size.
+
+## Examples
+
+### Example 1: TTL Expiration and LRU Eviction
+
+**Input**
 
 ```python
-{"A": (200, 30)}
+operations = [
+    ["put", 0, "a", 10, 5],
+    ["put", 1, "b", 20, 0],
+    ["get", 2, "a"],
+    ["put", 3, "c", 30, 0],
+    ["get", 4, "b"],
+    ["get", 5, "a"],
+    ["size", 5]
+]
+
+capacity = 2
 ```
 
-At time 10, you discover that the first heap record is outdated.
+**Output**
 
-Should you reinsert `(30, "A")` into the heap?
+```python
+[None, None, 10, None, None, None, 1]
+```
 
-**Discussion questions:**
+**Explanation**
 
-- What happens if you reinsert it?
-- Is it acceptable to have multiple heap records for the same key?
-- How can you identify which record represents the current version?
-- How would you handle a key that is evicted and later reinserted with the same expiration deadline?
+- At time 0, `a` is inserted and expires at time 5.
+- At time 1, `b` is inserted without expiration.
+- At time 2, accessing `a` makes it most recently used.
+- At time 3, inserting `c` evicts `b`, the least recently used entry.
+- At time 4, `b` is absent.
+- At time 5, `a` expires.
+- The cache contains only `c`, so its size is 1.
 
-### Follow-up 6: Unbounded Heap Growth
+### Example 2: Updating an Existing Key
 
-**Interviewer:**
+**Input**
 
-Your cache capacity is only 100 entries.
+```python
+operations = [
+    ["put", 0, "a", 100, 5],
+    ["put", 2, "a", 200, 10],
+    ["get", 5, "a"],
+    ["get", 12, "a"],
+    ["size", 12]
+]
 
-However, one key is updated 1 million times before its expiration records are processed.
+capacity = 2
+```
 
-Your hashmap contains at most 100 entries, but your heap may contain 1 million records.
+**Output**
 
-Would you consider this acceptable for a production cache?
+```python
+[None, None, 200, None, 0]
+```
 
-**Discussion questions:**
+**Explanation**
 
-- Why can lazy deletion cause unbounded memory growth?
-- How would you prevent the heap from growing indefinitely?
-- Can you reduce memory consumption without sacrificing efficient updates?
-- What trade-offs would your approach introduce?
+Updating `a` at time 2 replaces its value and moves its expiration deadline to time 12. It remains valid at time 5 but expires at time 12.
 
-### Follow-up 7: Heap Compaction
+### Example 3: Explicit Deletion
 
-**Interviewer:**
+**Input**
 
-Suppose you decide to periodically rebuild the heap using only the current valid cache entries.
+```python
+operations = [
+    ["put", 0, "a", 10, 0],
+    ["delete", 1, "a"],
+    ["delete", 2, "a"],
+    ["get", 3, "a"],
+    ["size", 4]
+]
 
-For a cache with capacity 100, imagine rebuilding when the heap exceeds 200 records.
+capacity = 2
+```
 
-**Discussion questions:**
+**Output**
 
-- How would you rebuild the heap?
-- What is the time complexity of rebuilding?
-- How would you choose a compaction threshold?
-- What happens if the cache contains only 2 live entries but has capacity for 1 million?
-- Can the heap size be bounded by O(N), where N is the cache capacity?
+```python
+[None, True, False, None, 0]
+```
 
-### Follow-up 8: Amortized Complexity
+## Constraints and Assumptions
 
-**Interviewer:**
+- `capacity >= 1`.
+- Operation timestamps are nonnegative and nondecreasing.
+- Multiple operations may have the same timestamp.
+- TTL values are nonnegative integers.
+- Keys are strings and values are integers.
+- Operations are executed sequentially in the given order.
+- No concurrency is required in the base problem.
 
-Heap rebuilding takes O(N), which is more expensive than a normal heap insertion.
+## Interview Follow-ups
 
-How can you argue that periodic heap rebuilding still provides efficient performance over many cache operations?
+After implementing the basic cache, discuss:
 
-**Discussion questions:**
+1. What is the time complexity of `get`, `put`, `delete`, and `size`?
+2. Can expired entries be identified without scanning the entire cache?
+3. How should expiration be handled when an existing key's TTL changes?
+4. What happens when multiple expiration records exist for the same key?
+5. How can stale expiration records be handled efficiently?
+6. Can expiration tracking consume significantly more memory than the cache itself?
+7. How would you bound expiration-tracking memory?
+8. How would you analyze the amortized complexity of periodic cleanup?
+9. How would you make the cache thread-safe?
+10. How could you improve concurrency without a single global lock?
 
-- What is the difference between worst-case and amortized complexity?
-- If rebuilding costs O(N) but happens once every O(N) updates, what is the amortized rebuilding cost per update?
-- Can the overall update operation remain O(log N) amortized?
-- Does this guarantee that every individual operation completes in O(log N)?
-- How would you justify your compaction policy formally?
-
-### Follow-up 9: Integrating LRU with TTL
-
-**Interviewer:**
-
-Now combine TTL expiration with LRU eviction.
-
-Suppose the cache is full and a new key is inserted.
-
-Some entries have expired, while others remain valid.
-
-**Discussion questions:**
-
-- In what order should expiration cleanup and LRU eviction occur?
-- Should an expired entry count toward cache capacity?
-- Does reading an expired key update its recency?
-- How do you keep the LRU structure and expiration tracking consistent?
-- What happens to expiration records when a key is evicted due to capacity?
-
-### Follow-up 10: Production-Level Design
-
-**Interviewer:**
-
-Your implementation works correctly in a single-threaded environment.
-
-Now imagine it is used by a high-throughput, multithreaded service.
-
-**Discussion questions:**
-
-- What race conditions could occur between `get()`, `put()`, expiration cleanup, and LRU eviction?
-- Would a single global lock be sufficient?
-- How could you improve concurrency?
-- What changes if multiple threads update the same key's TTL?
-- How would you handle heap compaction without blocking all cache operations for too long?
-
----
-
-## Final Interview Challenge
-
-Implement the cache and explain:
-
-1. Your chosen data structures and why each is necessary.
-2. How `get()` and `put()` work.
-3. How expiration cleanup works.
-4. How stale heap entries are detected.
-5. How duplicate expiration records are handled.
-6. How heap memory growth is controlled.
-7. How LRU eviction interacts with TTL expiration.
-8. Worst-case and amortized time complexity.
-9. Space complexity.
-10. Edge cases and concurrency considerations.
-
-**Interviewer expectation:** Prioritize correctness first, then efficient expiration handling, bounded memory usage, and a clear explanation of amortized complexity.
-
-Do not assume every operation must have O(1) worst-case complexity. Explain the trade-offs of the chosen design.
+**Goal:** Build a correct cache, maintain TTL and LRU semantics, and explain the performance and memory trade-offs of your implementation.
